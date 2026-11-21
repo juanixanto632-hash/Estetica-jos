@@ -1,0 +1,352 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  min-height: 100%;
+  font-family: var(--font-family);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Títulos según branding: 600-700 con letter-spacing -0.02em */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--jos-700);
+  letter-spacing: var(--title-letter-spacing);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] h4,
+[data-theme='dark'] h5,
+[data-theme='dark'] h6 {
+  color: var(--text-main);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Botones limpios sin distorsión de dimensiones globales */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* Paneles translúcidos espaciales / macOS glass ligeros y optimizados para 60fps */
+.glass-panel {
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.glass-panel-elevated {
+  background: var(--bg-surface-elevated);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-floating);
+}
+
+/* Barra de desplazamiento sutil estilo macOS */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--jos-500);
+}
+
+/* Clases de Visibilidad Responsive */
+@media (max-width: 767px) {
+  .desktop-only,
+  .md-flex,
+  .desktop-dock {
+    display: none !important;
+  }
+
+  main {
+    /* Espacio inferior calibrado para la Bottom Navigation Bar */
+    padding-bottom: 4.85rem !important;
+  }
+
+  .sticky-appointment-bar {
+    bottom: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Botones del Hero a ancho completo en móvil */
+  .hero-buttons-container {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .hero-buttons-container .hero-cta-btn,
+  .hero-buttons-container .hero-whatsapp-link,
+  .hero-buttons-container .hero-whatsapp-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .hero-buttons-container {
+    flex-direction: row !important;
+    width: auto !important;
+  }
+
+  .hero-buttons-container .hero-cta-btn,
+  .hero-buttons-container .hero-whatsapp-link,
+  .hero-buttons-container .hero-whatsapp-btn {
+    width: auto !important;
+  }
+  .mobile-only,
+  .md-hidden,
+  .hamburger-btn,
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .sticky-appointment-bar {
+    bottom: 1.5rem !important;
+  }
+
+  .treatment-detail-container {
+    border-radius: 24px !important;
+    margin: auto !important;
+    max-height: 85vh !important;
+  }
+}
+
+/* Animaciones fluidas ligeras */
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpBar {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Respeto a usuarios con movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Franja superior fija para iOS Safe Area al hacer scroll */
+.ios-safe-area-top-fill {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 100;
+  pointer-events: none;
+}
+
+[data-theme='dark'] .ios-safe-area-top-fill {
+  background-color: rgba(26, 22, 37, 0.92);
+}
+
+/* Navegación responsiva apilada en móvil para Paso 2 (Selección de Especialista) */
+.step2-nav-container {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.step2-primary-btn {
+  width: 100% !important;
+  padding-top: 0.875rem !important;
+  padding-bottom: 0.875rem !important;
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.step2-secondary-btn {
+  width: 100% !important;
+  text-align: center !important;
+  justify-content: center !important;
+  padding: 0.65rem 1rem !important;
+  color: var(--text-muted) !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  transition: color var(--transition-fast) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+}
+
+.step2-secondary-btn:hover {
+  color: var(--text-main) !important;
+}
+
+@media (min-width: 640px) {
+  .step2-nav-container {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .step2-primary-btn {
+    width: auto !important;
+  }
+
+  .step2-secondary-btn {
+    width: auto !important;
+  }
+}
+
+/* Clases de deshabilitado y utilidad */
+.opacity-50 {
+  opacity: 0.5 !important;
+}
+.pointer-events-none {
+  pointer-events: none !important;
+}
+.w-full {
+  width: 100% !important;
+}
+.max-w-full {
+  max-width: 100% !important;
+}
+.overflow-x-hidden {
+  overflow-x: hidden !important;
+}
+.overflow-hidden {
+  overflow: hidden !important;
+}
+.whitespace-nowrap {
+  white-space: nowrap !important;
+}
+.truncate {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.leading-none {
+  line-height: 1 !important;
+}
+.relative {
+  position: relative !important;
+}
+.absolute {
+  position: absolute !important;
+}
+.rounded-xl {
+  border-radius: 0.85rem !important;
+}
+.rounded-2xl {
+  border-radius: 1rem !important;
+}
+.touch-pan-y {
+  touch-action: pan-y !important;
+}
+.select-none {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+.cursor-grab {
+  cursor: grab !important;
+}
+.cursor-grabbing {
+  cursor: grabbing !important;
+}
+.px-4 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+@media (min-width: 640px) {
+  .sm\:px-0 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
