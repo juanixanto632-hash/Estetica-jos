@@ -3,6 +3,13 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Bloquear scripts de badges y HUD de Netlify
+[[redirects]]
+  from = "/.netlify/scripts/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
 # Redirección de funciones de API (Debe ir primero)
 [[redirects]]
   from = "/api/*"

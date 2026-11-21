@@ -350,3 +350,24 @@ input, textarea, select {
 .spin {
   animation: spin 1s linear infinite;
 }
+
+/* Ocultación y neutralización del widget/badge de Netlify (HUD) */
+#nl-hud-frame,
+#nl-badge-frame,
+iframe#nl-hud-frame,
+iframe#nl-badge-frame,
+iframe[srcdoc*="Netlify"],
+iframe[src*="netlify"],
+[data-netlify-drawer],
+netlify-drawer {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  top: -99999px !important;
+  left: -99999px !important;
+  z-index: -99999 !important;
+}

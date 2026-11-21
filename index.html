@@ -25,8 +25,33 @@
     <meta property="og:title" content="Estética Jos | Mérida, Venezuela" />
     <meta property="og:description" content="Tratamientos faciales y corporales de vanguardia con atención personalizada." />
     <meta property="og:image" content="/branding/logos/logo-circular.png" />
+    <!-- Bloqueo preventivo de Netlify HUD / Badge -->
+    <script>
+      (function() {
+        var observer = new MutationObserver(function(mutations) {
+          for (var i = 0; i < mutations.length; i++) {
+            var added = mutations[i].addedNodes;
+            for (var j = 0; j < added.length; j++) {
+              var node = added[j];
+              if (node && node.nodeType === 1) {
+                if (node.tagName === 'SCRIPT' && ((node.src && node.src.indexOf('hud') !== -1) || node.hasAttribute('data-nf-variant'))) {
+                  node.remove ? node.remove() : node.parentNode && node.parentNode.removeChild(node);
+                }
+                if (node.id === 'nl-hud-frame' || node.id === 'nl-badge-frame' || (node.tagName === 'IFRAME' && node.id && node.id.indexOf('nl-') !== -1)) {
+                  node.remove ? node.remove() : node.parentNode && node.parentNode.removeChild(node);
+                }
+              }
+            }
+          }
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
   </head>
   <body>
+    <!-- Señuelos anti-inicialización Netlify HUD -->
+    <div id="nl-hud-frame" style="display:none!important;visibility:hidden!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;" aria-hidden="true"></div>
+    <div id="nl-badge-frame" style="display:none!important;visibility:hidden!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -41,6 +41,7 @@ build/Release
 # Dependencies and local tools
 node_modules/
 .tools/
+.netlify/
 npm.bat
 npx.bat
 node.bat
