@@ -177,34 +177,48 @@ function handleRegisterClient(ss, data) {
     });
   }
 
-  const lastRow = clientesSheet.getLastRow();
+  // Buscar la primera fila vacía basándose ÚNICAMENTE en la columna A (Clientes!A:D)
+  // para no saltar filas que tengan fórmulas en las columnas E–H
+  const colAValues = clientesSheet.getRange('A:A').getValues();
+  let targetRow = -1;
+  for (let i = 1; i < colAValues.length; i++) { // Empezamos en i = 1 (fila 2, saltando encabezado)
+    const val = colAValues[i][0];
+    if (val === '' || val === null || val === undefined) {
+      targetRow = i + 1;
+      break;
+    }
+  }
+  if (targetRow === -1) {
+    targetRow = colAValues.length + 1;
+  }
 
-  // Verificar si el correo ya existe en Columna C (índice 3)
-  if (lastRow > 1) {
-    const existingEmails = clientesSheet.getRange(2, 3, lastRow - 1, 1).getValues();
-    for (let i = 0; i < existingEmails.length; i++) {
-      const emailInSheet = (existingEmails[i][0] || '').toString().trim().toLowerCase();
-      if (emailInSheet && emailInSheet === correo) {
-        return createJsonResponse({
-          success: false,
-          alreadyExists: true,
-          error: 'Este correo electrónico ya se encuentra registrado en nuestra base de datos.'
-        });
-      }
+  // Verificar si el correo ya existe en Columna C (índice 3) en las filas ocupadas
+  for (let i = 1; i < targetRow - 1; i++) {
+    const existingEmail = (clientesSheet.getRange(i + 1, 3).getValue() || '').toString().trim().toLowerCase();
+    if (existingEmail && existingEmail === correo) {
+      return createJsonResponse({
+        success: false,
+        alreadyExists: true,
+        error: 'Este correo electrónico ya se encuentra registrado en nuestra base de datos.'
+      });
     }
   }
 
   // Fecha de registro en formato dd/MM/yyyy con zona horaria America/Caracas
   const fechaRegistro = Utilities.formatDate(new Date(), TIMEZONE, 'dd/MM/yyyy');
-  const targetRow = lastRow + 1;
 
-  // Insertar SOLO en las columnas A (1), B (2), C (3) y D (4)
-  // Las columnas E:J quedan totalmente intactas para que sus fórmulas continúen operando
-  clientesSheet.getRange(targetRow, 1, 1, 4).setValues([[
+  // Insertar fila en este orden exacto:
+  // [Nombre, Teléfono, Correo, Fecha de registro (DD/MM/YYYY), "", "", "", "Sin visitas aún"]
+  // Columnas A hasta H (8 columnas)
+  clientesSheet.getRange(targetRow, 1, 1, 8).setValues([[
     nombre,
     telefono,
     correo,
-    fechaRegistro
+    fechaRegistro,
+    '',
+    '',
+    '',
+    'Sin visitas aún'
   ]]);
 
   // Enviar correo de bienvenida amigable y profesional
@@ -296,7 +310,19 @@ function handleBookAppointment(ss, data) {
     });
   }
 
-  const nextRow = citasSheet.getLastRow() + 1;
+  // Buscar la primera fila vacía basándose ÚNICAMENTE en la columna A
+  const colAValuesCitas = citasSheet.getRange('A:A').getValues();
+  let nextRow = -1;
+  for (let i = 1; i < colAValuesCitas.length; i++) {
+    const val = colAValuesCitas[i][0];
+    if (val === '' || val === null || val === undefined) {
+      nextRow = i + 1;
+      break;
+    }
+  }
+  if (nextRow === -1) {
+    nextRow = colAValuesCitas.length + 1;
+  }
 
   /**
    * Mapeo de columnas de 'Citas y Cobros' (A hasta R, 18 columnas):
@@ -455,8 +481,19 @@ function handleRequestGiftCard(ss, data) {
     sheet.setFrozenRows(1);
   }
 
-  const lastRow = sheet.getLastRow();
-  const targetRow = lastRow + 1;
+  // Buscar la primera fila vacía basándose ÚNICAMENTE en la columna A
+  const colAValuesGift = sheet.getRange('A:A').getValues();
+  let targetRow = -1;
+  for (let i = 1; i < colAValuesGift.length; i++) {
+    const val = colAValuesGift[i][0];
+    if (val === '' || val === null || val === undefined) {
+      targetRow = i + 1;
+      break;
+    }
+  }
+  if (targetRow === -1) {
+    targetRow = colAValuesGift.length + 1;
+  }
 
   const rowValues = [
     codigo,

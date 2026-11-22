@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Search, Clock, Check, Plus, RefreshCw, DollarSign } from 'lucide-react';
+import { Sparkles, Search, Clock, Check, Plus, DollarSign } from 'lucide-react';
 import { Button, Card, ImageWithFallback } from '../../components/common';
 import { Service } from '../../data/mockData';
 import { useCatalog } from '../../hooks/useCatalog';
@@ -16,7 +16,7 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
   cartItemIds,
   onSelectTreatment,
 }) => {
-  const { services, isLoading, isLiveSync, lastSyncTime, refreshCatalog } = useCatalog();
+  const { services } = useCatalog();
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'facial' | 'corporal' | 'nutricion'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [bcvInfo, setBcvInfo] = useState<BcvRateInfo | null>(null);
@@ -61,85 +61,39 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
           Tratamientos faciales, corporales y planes de nutrición en Mérida.
         </p>
 
-        {/* Indicador de Sincronización en vivo con Google Sheets y Tasa BCV */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-            marginTop: '0.85rem',
-            padding: '0.4rem 0.95rem',
-            borderRadius: 'var(--radius-pill)',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-subtle)',
-            fontSize: '0.8rem',
-            color: 'var(--text-main)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: isLiveSync ? '#22c55e' : '#eab308',
-                display: 'inline-block',
-              }}
-            />
-            <span style={{ fontWeight: 600 }}>
-              {isLiveSync ? 'Sheets en Vivo' : 'Caché local'}
-            </span>
-            {lastSyncTime && (
-              <span style={{ color: 'var(--text-light)', fontSize: '0.75rem' }}>
-                ({lastSyncTime})
+        {/* Píldora limpia con la Tasa Oficial BCV */}
+        {bcvInfo && (
+          <div
+            onClick={() => {
+              getOfficialBcvRate(true).then(setBcvInfo).catch(console.warn);
+            }}
+            title="Haz clic para actualizar la tasa oficial BCV"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.45rem',
+              marginTop: '0.85rem',
+              padding: '0.45rem 1.15rem',
+              borderRadius: 'var(--radius-pill)',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '0.82rem',
+              color: 'var(--text-main)',
+              boxShadow: 'var(--shadow-subtle)',
+              cursor: 'pointer',
+            }}
+          >
+            <DollarSign size={14} color="var(--jos-500)" />
+            <span style={{ fontWeight: 600 }}>Tasa Oficial BCV:</span>
+            <strong style={{ color: 'var(--jos-700)' }}>Bs. {bcvInfo.rate.toFixed(2)}</strong>
+            {bcvInfo.bcvOfficialDate && (
+              <span style={{ color: 'var(--text-light)', fontSize: '0.74rem' }}>
+                ({bcvInfo.bcvOfficialDate})
               </span>
             )}
-            <button
-              onClick={() => refreshCatalog()}
-              title="Actualizar catálogo desde Google Sheets"
-              disabled={isLoading}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--jos-500)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0.1rem',
-              }}
-            >
-              <RefreshCw size={13} className={isLoading ? 'spin' : ''} />
-            </button>
           </div>
-
-          {bcvInfo && (
-            <div
-              onClick={() => {
-                getOfficialBcvRate(true).then(setBcvInfo).catch(console.warn);
-              }}
-              title="Haz clic para actualizar la tasa BCV en vivo"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                borderLeft: '1px solid var(--border-subtle)',
-                paddingLeft: '0.75rem',
-                cursor: 'pointer',
-              }}
-            >
-              <DollarSign size={13} color="var(--jos-500)" />
-              <span style={{ fontWeight: 600 }}>Tasa Oficial BCV:</span>
-              <strong style={{ color: 'var(--jos-700)' }}>Bs. {bcvInfo.rate.toFixed(2)}</strong>
-              {bcvInfo.bcvOfficialDate && (
-                <span style={{ color: 'var(--text-light)', fontSize: '0.74rem' }}>
-                  ({bcvInfo.bcvOfficialDate})
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Barra de Filtros & Búsqueda */}
@@ -271,7 +225,23 @@ export const CatalogScreen: React.FC<CatalogScreenProps> = ({
               key={service.id}
               variant="glass"
               enableTilt={false}
-              badge={service.badge}
+              badge={
+                service.badge ? (
+                  <span
+                    className="right-3 top-3 px-3 py-1 rounded-full text-xs"
+                    style={{
+                      background: 'var(--badge-bg)',
+                      color: 'var(--badge-text)',
+                      fontWeight: 700,
+                      display: 'inline-block',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    ⭐ {service.badge}
+                  </span>
+                ) : undefined
+              }
               header={
                 <div
                   onClick={() => onSelectTreatment && onSelectTreatment(service)}

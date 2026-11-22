@@ -277,28 +277,46 @@ export const GiftCardScreen: React.FC<GiftCardScreenProps> = ({
       // Silencioso
     }
 
-    // 2. Registro en Google Sheets mediante Apps Script si está disponible
-    if (APPS_SCRIPT_URL) {
-      try {
-        const payload = {
-          action: 'request_gift_card',
-          codigo: giftCode,
-          fecha: new Date().toLocaleDateString('es-VE'),
-          de: senderName.trim(),
-          para: recipientName.trim(),
-          tratamiento: selectedService.name,
-          precio: selectedService.price,
-          correo_entrega: effectiveEmail,
-          estado: 'Pendiente',
-        };
+    // 2. Registro en Google Sheets mediante Netlify Function /api/request-gift-card o Apps Script
+    const giftPayload = {
+      action: 'request_gift_card',
+      codigo: giftCode,
+      fecha: new Date().toLocaleDateString('es-VE'),
+      de: senderName.trim(),
+      para: recipientName.trim(),
+      tratamiento: selectedService.name,
+      precio: selectedService.price,
+      correo_entrega: effectiveEmail,
+      estado: 'Pendiente',
+      honeypot: '',
+      turnstileToken: 'turnstile_dev_mock_token',
+    };
 
+    try {
+      const res = await fetch('/api/request-gift-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(giftPayload),
+      });
+
+      if (!res.ok && APPS_SCRIPT_URL) {
         await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(giftPayload),
         });
-      } catch (sheetErr) {
-        console.warn('[GiftCard] Error sincronizando con Google Sheets:', sheetErr);
+      }
+    } catch {
+      if (APPS_SCRIPT_URL) {
+        try {
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(giftPayload),
+          });
+        } catch (sheetErr) {
+          console.warn('[GiftCard] Error sincronizando con Google Sheets:', sheetErr);
+        }
       }
     }
 
@@ -627,9 +645,6 @@ export const GiftCardScreen: React.FC<GiftCardScreenProps> = ({
               <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--jos-700)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <Sparkles size={14} /> Resumen del Certificado
               </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-light)', fontStyle: 'italic' }}>
-                Vista en tiempo real
-              </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
@@ -642,7 +657,7 @@ export const GiftCardScreen: React.FC<GiftCardScreenProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>Para: </span>
               <strong style={{ color: 'var(--jos-700)', textAlign: 'right' }}>
-                {recipientName.trim() || 'Nombre del Agasajado'}
+                {recipientName.trim() || 'Nombre de quien recibe'}
               </strong>
             </div>
 
@@ -705,8 +720,8 @@ export const GiftCardScreen: React.FC<GiftCardScreenProps> = ({
 
             {/* Campo 2: PARA (Para quién es el regalo) */}
             <Input
-              label="Para (Nombre del beneficiario)"
-              placeholder="Ej. Andrea Gómez"
+              label="Para (Nombre de quien recibe)"
+              placeholder="Nombre de quien recibe"
               icon={<Heart size={18} />}
               value={recipientName}
               onChange={(e) => setRecipientName(e.target.value)}
@@ -789,7 +804,7 @@ export const GiftCardScreen: React.FC<GiftCardScreenProps> = ({
                     cursor: 'pointer',
                   }}
                 >
-                  Directo al agasajado
+                  Directo a quien recibe
                 </button>
               </div>
 

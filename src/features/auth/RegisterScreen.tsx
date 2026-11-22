@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { UserCheck, Mail, Phone, User, CheckCircle2, Heart, Eye, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
-import { Button, Input, Card, Modal, TurnstileWidget } from '../../components/common';
-import { generateWelcomeEmailHtml } from '../../templates/welcomeEmail';
+import { UserCheck, Mail, Phone, User, CheckCircle2, Heart, AlertCircle, ArrowRight } from 'lucide-react';
+import { Button, Input, Card, TurnstileWidget } from '../../components/common';
 import { APPS_SCRIPT_URL } from '../../config/appsScript';
 
 interface RegisterScreenProps {
@@ -22,7 +21,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [serverNotice, setServerNotice] = useState<string | null>(null);
 
   const validate = () => {
@@ -65,29 +63,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
     };
 
     try {
-      // 1. Envío directo al Web App de Google Apps Script si está configurada la constante
-      if (APPS_SCRIPT_URL) {
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-          },
-          body: JSON.stringify(clientPayload),
-        });
+      let success = false;
+      let errorMessage = '';
 
-        const data = await response.json();
-
-        if (!data.success) {
-          if (data.alreadyExists) {
-            setErrors({ email: 'Este correo ya se encuentra registrado en nuestra base de datos.' });
-          } else {
-            setServerNotice(data.error || 'Ocurrió un error al registrar en Google Sheets.');
-          }
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        // Fallback a Netlify Function local si no se ha configurado la URL de Apps Script
+      // 1. Enviar prioritariamente a Netlify Function /api/register-client
+      try {
         const response = await fetch('/api/register-client', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -102,32 +82,78 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
           }),
         });
 
-        if (!response.ok) {
-          const resData = await response.json().catch(() => ({}));
-          if (response.status === 409) {
-            setErrors({ email: 'Este correo ya se encuentra registrado en nuestra base de datos.' });
-          } else {
-            setServerNotice(resData.error || 'Ocurrió un error al procesar tu registro.');
-          }
+        const resData = await response.json().catch(() => ({}));
+
+        if (response.ok && resData.success) {
+          success = true;
+        } else if (response.status === 409 || resData.isDuplicate) {
+          setErrors({ email: resData.error || 'Este correo ya se encuentra registrado en nuestra base de datos.' });
           setIsLoading(false);
           return;
+        } else if (response.status === 404 && APPS_SCRIPT_URL) {
+          // Fallback a Apps Script directo si /api retorna 404 (ej. en desarrollo local estático con Vite)
+          const directRes = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(clientPayload),
+          });
+          const directData = await directRes.json();
+          if (directData.success) {
+            success = true;
+          } else if (directData.alreadyExists) {
+            setErrors({ email: 'Este correo ya se encuentra registrado en nuestra base de datos.' });
+            setIsLoading(false);
+            return;
+          } else {
+            errorMessage = directData.error || 'Error al guardar en Google Sheets.';
+          }
+        } else {
+          errorMessage = resData.error || `Error del servidor de registro (HTTP ${response.status}).`;
+        }
+      } catch (netErr: any) {
+        // En caso de fallo de red al llamar /api, intentar con APPS_SCRIPT_URL directo
+        if (APPS_SCRIPT_URL) {
+          try {
+            const directRes = await fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify(clientPayload),
+            });
+            const directData = await directRes.json();
+            if (directData.success) {
+              success = true;
+            } else if (directData.alreadyExists) {
+              setErrors({ email: 'Este correo ya se encuentra registrado en nuestra base de datos.' });
+              setIsLoading(false);
+              return;
+            } else {
+              errorMessage = directData.error || 'Error al guardar en Google Sheets.';
+            }
+          } catch (scriptErr: any) {
+            errorMessage = `No se pudo conectar con el servidor ni con Google Sheets: ${scriptErr.message || netErr.message}`;
+          }
+        } else {
+          errorMessage = `Error de conexión: ${netErr.message || 'No se pudo contactar al servidor.'}`;
         }
       }
 
-      // Guardar en almacenamiento local para recordar datos del paciente en el agendamiento
+      // Si falló el registro, mostramos el error real y NUNCA mostramos pantalla de bienvenida
+      if (!success) {
+        setServerNotice(errorMessage || 'No se pudo registrar el paciente en Google Sheets. Por favor intenta de nuevo.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Guardar en almacenamiento local únicamente tras confirmación real del servidor
       localStorage.setItem('jos_patient_name', formData.fullName.trim());
       localStorage.setItem('jos_patient_phone', formData.phone.trim());
       localStorage.setItem('jos_patient_email', formData.email.trim().toLowerCase());
 
       setIsSubmitted(true);
     } catch (err: any) {
-      console.warn('[Register] Error de red o conexión:', err);
-      // Guardar en almacenamiento local para no bloquear la experiencia de usuario
-      localStorage.setItem('jos_patient_name', formData.fullName.trim());
-      localStorage.setItem('jos_patient_phone', formData.phone.trim());
-      localStorage.setItem('jos_patient_email', formData.email.trim().toLowerCase());
-
-      setIsSubmitted(true);
+      console.error('[Register] Error inesperado en el registro:', err);
+      setServerNotice(`Error al procesar el registro: ${err.message || 'Intente nuevamente más tarde.'}`);
+      setIsSubmitted(false);
     } finally {
       setIsLoading(false);
     }
@@ -214,41 +240,79 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
                 ¡Te damos la bienvenida a Estética Jos, {formData.fullName.split(' ')[0]}!
               </h3>
               <p style={{ fontSize: '0.94rem', color: 'var(--text-muted)', maxWidth: '460px', margin: '0 auto', lineHeight: 1.5 }}>
-                Tu ficha clínica ha sido registrada exitosamente. Hemos preparado tu correo de bienvenida oficial con el resumen de nuestros servicios.
+                Tu ficha clínica ya está lista en Estética Jos. Ya puedes agendar tu primera sesión en Mérida.
               </p>
             </div>
 
-            {/* Tarjeta de Resumen */}
+            {/* Tarjeta de Resumen ordenada como tabla limpia de 2 columnas */}
             <div
               style={{
                 width: '100%',
                 maxWidth: '480px',
-                padding: '1.15rem',
+                padding: '1.25rem',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border-subtle)',
                 textAlign: 'left',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.5rem',
-                fontSize: '0.86rem',
+                fontSize: '0.88rem',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Paciente: </span>
-                <strong style={{ color: 'var(--text-main)' }}>{formData.fullName}</strong>
+              <div
+                className="flex justify-between items-center py-2 border-b border-purple-900/5 last:border-0"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.55rem 0',
+                  borderBottom: '1px solid rgba(88, 28, 135, 0.05)',
+                }}
+              >
+                <span className="text-gray-500" style={{ color: '#6b7280' }}>Paciente: </span>
+                <span className="font-semibold text-right" style={{ fontWeight: 600, textAlign: 'right', color: 'var(--text-main)' }}>{formData.fullName}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Correo: </span>
-                <strong style={{ color: 'var(--text-main)' }}>{formData.email}</strong>
+
+              <div
+                className="flex justify-between items-center py-2 border-b border-purple-900/5 last:border-0"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.55rem 0',
+                  borderBottom: '1px solid rgba(88, 28, 135, 0.05)',
+                }}
+              >
+                <span className="text-gray-500" style={{ color: '#6b7280' }}>Correo: </span>
+                <span className="font-semibold text-right" style={{ fontWeight: 600, textAlign: 'right', color: 'var(--text-main)' }}>{formData.email}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>WhatsApp: </span>
-                <strong style={{ color: 'var(--text-main)' }}>{formData.phone}</strong>
+
+              <div
+                className="flex justify-between items-center py-2 border-b border-purple-900/5 last:border-0"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.55rem 0',
+                  borderBottom: '1px solid rgba(88, 28, 135, 0.05)',
+                }}
+              >
+                <span className="text-gray-500" style={{ color: '#6b7280' }}>WhatsApp: </span>
+                <span className="font-semibold text-right" style={{ fontWeight: 600, textAlign: 'right', color: 'var(--text-main)' }}>{formData.phone}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Sede: </span>
-                <strong style={{ color: 'var(--jos-700)' }}>CC Naranjo · Piso 2 · Mérida</strong>
+
+              <div
+                className="flex justify-between items-center py-2 border-b border-purple-900/5 last:border-0"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.55rem 0',
+                  borderBottom: 'none',
+                }}
+              >
+                <span className="text-gray-500" style={{ color: '#6b7280' }}>Sede: </span>
+                <span className="font-semibold text-right text-purple-900" style={{ fontWeight: 600, textAlign: 'right', color: 'var(--jos-700)' }}>CC Naranjo · Piso 2 · Mérida</span>
               </div>
             </div>
 
@@ -266,29 +330,31 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
                 </Button>
               )}
 
-              <Button
-                variant="outline"
-                size="md"
-                icon={<Eye size={17} />}
-                onClick={() => setIsPreviewModalOpen(true)}
-              >
-                Ver Correo de Bienvenida Enviado
-              </Button>
-
               <button
                 type="button"
                 onClick={() => {
-                  setIsSubmitted(false);
-                  setFormData({ fullName: '', phone: '', email: '', interest: 'facial', notes: '' });
+                  if (onNavigate) {
+                    onNavigate('inicio');
+                  } else {
+                    setIsSubmitted(false);
+                    setFormData({ fullName: '', phone: '', email: '', interest: 'facial', notes: '' });
+                  }
                 }}
                 style={{
-                  fontSize: '0.84rem',
+                  background: 'none',
+                  border: 'none',
                   color: 'var(--text-muted)',
-                  marginTop: '0.5rem',
-                  textDecoration: 'underline',
+                  fontSize: '0.88rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  padding: '0.5rem',
+                  textDecoration: 'none',
+                  transition: 'color var(--transition-fast)',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--jos-700)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
               >
-                Registrar otro paciente
+                Volver al Inicio
               </button>
             </div>
           </div>
@@ -421,48 +487,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
           </form>
         </Card>
       )}
-
-      {/* Modal de Vista Previa del Correo con la Marca Estética Jos */}
-      <Modal
-        isOpen={isPreviewModalOpen}
-        onClose={() => setIsPreviewModalOpen(false)}
-        title="Plantilla de Correo de Bienvenida (Resend)"
-        maxWidth="620px"
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--jos-500)', fontSize: '0.84rem' }}>
-            <Sparkles size={16} />
-            <span>Diseño HTML generado con la paleta oficial de Estética Jos</span>
-          </div>
-
-          <div
-            style={{
-              maxHeight: '480px',
-              overflowY: 'auto',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              background: '#fcf8fc',
-              padding: '0.5rem',
-            }}
-          >
-            <iframe
-              title="Vista previa del correo de bienvenida"
-              srcDoc={generateWelcomeEmailHtml({
-                fullName: formData.fullName || 'Valeria Carrillo',
-                email: formData.email || 'valeria@ejemplo.com',
-                phone: formData.phone || '+58 414-7518902',
-              })}
-              style={{ width: '100%', height: '460px', border: 'none', borderRadius: '8px' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
-            <Button variant="secondary" size="sm" onClick={() => setIsPreviewModalOpen(false)}>
-              Cerrar Vista Previa
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

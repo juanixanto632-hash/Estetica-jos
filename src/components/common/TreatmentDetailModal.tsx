@@ -108,12 +108,15 @@ export const TreatmentDetailModal: React.FC<TreatmentDetailModalProps> = ({
         </button>
 
         {/* Contenido con scroll suave */}
-        <div style={{ overflowY: 'auto', padding: '0.5rem 1.5rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ overflowY: 'auto', padding: '0.5rem 1.5rem 1.75rem', display: 'flex', flexDirection: 'column' }}>
           {/* Imagen de Cabecera */}
           <div
+            className="h-48 w-full object-cover rounded-xl mb-4 relative overflow-hidden shadow-sm"
             style={{
-              height: '210px',
-              borderRadius: 'var(--radius-lg)',
+              height: '12rem',
+              width: '100%',
+              borderRadius: '0.75rem',
+              marginBottom: '1rem',
               overflow: 'hidden',
               position: 'relative',
               boxShadow: 'var(--shadow-subtle)',
@@ -123,6 +126,13 @@ export const TreatmentDetailModal: React.FC<TreatmentDetailModalProps> = ({
               src={service.image}
               alt={service.name}
               fallbackType="treatment"
+              className="h-48 w-full object-cover rounded-xl"
+              style={{
+                height: '100%',
+                width: '100%',
+                objectFit: 'cover',
+                borderRadius: '0.75rem',
+              }}
             />
             {service.badge && (
               <span

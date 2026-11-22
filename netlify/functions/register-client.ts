@@ -189,37 +189,85 @@ export const handler: Handler = async (event) => {
       emailStatus = 'simulated';
     }
 
-    // 9. Sincronización automática con Google Sheets (pestaña Clientes)
+    // 9. Sincronización estricta con Google Sheets (pestaña Clientes)
     const sheetsWebhook = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
-    let sheetsSync = 'skipped';
-    if (sheetsWebhook) {
-      try {
-        const sheetRes = await fetch(sheetsWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'register_client',
-            fullName: cleanName,
-            phone: cleanPhone,
-            email: cleanEmail,
-            interest: cleanInterest,
-            notes: cleanNotes,
-          }),
-        });
-        sheetsSync = sheetRes.ok ? 'synced' : `error_status_${sheetRes.status}`;
-      } catch (err: any) {
-        console.warn('[Google Sheets Register Sync Error]:', err.message);
-        sheetsSync = 'network_error';
-      }
+    if (!sheetsWebhook) {
+      console.error('[Google Sheets Error]: Variable GOOGLE_SHEETS_WEBHOOK_URL no configurada en Netlify.');
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: false,
+          error: 'Error de configuración en Netlify: falta configurar la variable de entorno GOOGLE_SHEETS_WEBHOOK_URL.',
+        }),
+      };
     }
 
-    // 10. Respuesta Segura: NUNCA expone datos privados innecesarios
+    let sheetsSyncResult: any = null;
+    try {
+      const sheetRes = await fetch(sheetsWebhook, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          action: 'register_client',
+          nombre: cleanName,
+          telefono: cleanPhone,
+          correo: cleanEmail,
+          fullName: cleanName,
+          phone: cleanPhone,
+          email: cleanEmail,
+          interest: cleanInterest,
+          notes: cleanNotes,
+        }),
+      });
+
+      if (!sheetRes.ok) {
+        console.error(`[Google Sheets Error]: Servidor respondió con estado HTTP ${sheetRes.status}`);
+        return {
+          statusCode: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            success: false,
+            error: `El servidor de Google Sheets respondió con error (HTTP ${sheetRes.status}). Verifica la implementación del Web App o permisos de la Service Account.`,
+          }),
+        };
+      }
+
+      sheetsSyncResult = await sheetRes.json();
+      if (!sheetsSyncResult.success) {
+        console.warn('[Google Sheets Sync Error]:', sheetsSyncResult);
+        return {
+          statusCode: sheetsSyncResult.alreadyExists ? 409 : 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            success: false,
+            error: sheetsSyncResult.error || 'No se pudo guardar la fila en la pestaña Clientes de Google Sheets.',
+            isDuplicate: !!sheetsSyncResult.alreadyExists,
+          }),
+        };
+      }
+    } catch (err: any) {
+      console.error('[Google Sheets Network Error]:', err.message);
+      return {
+        statusCode: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: false,
+          error: `Fallo de conexión al sincronizar con Google Sheets: ${err.message}. Verifica que el Web App esté publicado para "Cualquiera" (Anyone).`,
+        }),
+      };
+    }
+
+    // 10. Respuesta Segura: Paciente validado y guardado efectivamente en Google Sheets
     return {
       statusCode: 201,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         success: true,
-        message: 'Paciente registrado exitosamente en Estética Jos.',
+        message: 'Paciente registrado exitosamente en Estética Jos y sincronizado en Google Sheets.',
         data: {
           fullName: cleanName,
           email: cleanEmail,
@@ -228,7 +276,8 @@ export const handler: Handler = async (event) => {
           registeredAt: new Date().toISOString(),
           emailStatus,
           emailId,
-          sheetsSync,
+          sheetsSync: 'synced',
+          sheetRow: sheetsSyncResult?.data?.row,
         },
       }),
     };
@@ -237,7 +286,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Ocurrió un error al procesar el registro.' }),
+      body: JSON.stringify({ error: error.message || 'Ocurrió un error al procesar el registro.' }),
     };
   }
 };

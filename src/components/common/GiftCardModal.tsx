@@ -232,7 +232,7 @@ export const GiftCardModal: React.FC<GiftCardModalProps> = ({ isOpen, onClose })
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
                 <span style={{ color: '#7b6285', fontWeight: 600 }}>Para:</span>
-                <strong style={{ color: '#2b1832' }}>{recipientName.trim() || 'Nombre del agasajado'}</strong>
+                <strong style={{ color: '#2b1832' }}>{recipientName.trim() || 'Nombre de quien recibe'}</strong>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>

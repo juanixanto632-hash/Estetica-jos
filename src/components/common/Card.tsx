@@ -77,10 +77,11 @@ export const Card: React.FC<CardProps> = ({
     >
       {badge && (
         <div
+          className="absolute right-3 top-3 z-10 pointer-events-none"
           style={{
             position: 'absolute',
-            top: '0.85rem',
-            right: '0.85rem',
+            top: '0.75rem',
+            right: '0.75rem',
             zIndex: 10,
             pointerEvents: 'none',
           }}

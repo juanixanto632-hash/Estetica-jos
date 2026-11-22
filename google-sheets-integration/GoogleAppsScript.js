@@ -279,21 +279,34 @@ function syncPatient(ss, patientData) {
     }
     return { isNew: false, rowIndex: foundRowIndex };
   } else {
-    // Cliente nuevo: agregar al final
+    // Cliente nuevo: buscar la primera fila vacía basándose ÚNICAMENTE en la columna A
+    const colAValues = sheetClientes.getRange('A:A').getValues();
+    let targetRow = -1;
+    for (let i = 1; i < colAValues.length; i++) {
+      const val = colAValues[i][0];
+      if (val === '' || val === null || val === undefined) {
+        targetRow = i + 1;
+        break;
+      }
+    }
+    if (targetRow === -1) {
+      targetRow = colAValues.length + 1;
+    }
+
+    // Orden exacto de columnas para Estética Jos:
+    // [Nombre, Teléfono, Correo, Fecha de registro (DD/MM/YYYY), "", "", "", "Sin visitas aún"]
     const newRow = [
-      patientData.fullName,                                 // A: Nombre
-      patientData.phone,                                    // B: Teléfono
-      patientData.email || '',                              // C: Correo
-      today,                                                // D: Fecha registro
-      '',                                                   // E: Última visita
-      0,                                                    // F: Días sin venir
-      patientData.date || '',                               // G: Próxima visita
-      patientData.status || 'Nuevo Paciente',               // H: Estado
-      patientData.serviceName || '',                        // I: Último tratamiento
-      ''                                                    // J: Aviso retorno
+      patientData.fullName,
+      patientData.phone,
+      patientData.email || '',
+      today,
+      '',
+      '',
+      '',
+      'Sin visitas aún'
     ];
-    sheetClientes.appendRow(newRow);
-    return { isNew: true, rowIndex: sheetClientes.getLastRow() };
+    sheetClientes.getRange(targetRow, 1, 1, 8).setValues([newRow]);
+    return { isNew: true, rowIndex: targetRow };
   }
 }
 

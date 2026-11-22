@@ -107,10 +107,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             </div>
 
             <span
+              className={item.id === 'profesionales' ? 'text-[11px] whitespace-nowrap' : 'text-[11px] whitespace-nowrap'}
               style={{
-                fontSize: '0.69rem',
+                fontSize: '11px',
                 fontWeight: isActive ? 700 : 500,
                 letterSpacing: '-0.01em',
+                whiteSpace: 'nowrap',
               }}
             >
               {item.label}

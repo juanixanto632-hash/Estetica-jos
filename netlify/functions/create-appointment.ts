@@ -143,34 +143,85 @@ export const handler: Handler = async (event) => {
       status: 'Pendiente', // El cliente NUNCA puede alterar el estado
     };
 
-    // 7. Sincronización automática con Google Sheets
+    // 7. Sincronización estricta con Google Sheets (pestaña Citas y Cobros)
     const sheetsWebhook = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
-    let sheetsSync = 'skipped';
-    if (sheetsWebhook) {
-      try {
-        const sheetRes = await fetch(sheetsWebhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+    if (!sheetsWebhook) {
+      console.error('[Google Sheets Error]: Variable GOOGLE_SHEETS_WEBHOOK_URL no configurada en Netlify.');
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: false,
+          error: 'Error de configuración en Netlify: falta configurar la variable GOOGLE_SHEETS_WEBHOOK_URL.',
+        }),
+      };
+    }
+
+    let sheetsSyncResult: any = null;
+    try {
+      const sheetRes = await fetch(sheetsWebhook, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'book_appointment',
+          appointmentId,
+          fecha: cleanDate,
+          hora: cleanTime,
+          cliente: cleanClientName,
+          tratamiento: cleanServiceName,
+          profesional: cleanProfessional,
+          cantidad: 1,
+          forma_pago: cleanPaymentMethod || 'PAGO MÓVIL',
+          notas: cleanNotes || 'Agendado vía PWA',
+          correo: cleanClientEmail,
+          precio: parsedPrice,
+          // Compatibilidad dual
+          clientName: cleanClientName,
+          clientPhone: cleanClientPhone,
+          clientEmail: cleanClientEmail,
+          serviceName: cleanServiceName,
+          professionalName: cleanProfessional,
+          date: cleanDate,
+          time: cleanTime,
+          paymentMethod: cleanPaymentMethod || 'PAGO MÓVIL',
+        }),
+      });
+
+      if (!sheetRes.ok) {
+        console.error(`[Google Sheets Error Citas]: Servidor respondió con estado HTTP ${sheetRes.status}`);
+        return {
+          statusCode: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'create_appointment',
-            appointmentId,
-            clientName: cleanClientName,
-            clientPhone: cleanClientPhone,
-            clientEmail: cleanClientEmail,
-            serviceName: cleanServiceName,
-            professionalName: cleanProfessional,
-            date: cleanDate,
-            time: cleanTime,
-            price: parsedPrice,
-            paymentMethod: cleanPaymentMethod || 'Pago Móvil (BCV)',
-            notes: cleanNotes || 'Agendado vía PWA',
+            success: false,
+            error: `El servidor de Google Sheets respondió con error (HTTP ${sheetRes.status}) al guardar la cita en Citas y Cobros.`,
           }),
-        });
-        sheetsSync = sheetRes.ok ? 'synced' : `error_status_${sheetRes.status}`;
-      } catch (err: any) {
-        console.warn('[Google Sheets Sync Error]:', err.message);
-        sheetsSync = 'network_error';
+        };
       }
+
+      sheetsSyncResult = await sheetRes.json();
+      if (!sheetsSyncResult.success) {
+        console.warn('[Google Sheets Sync Error Citas]:', sheetsSyncResult);
+        return {
+          statusCode: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            success: false,
+            error: sheetsSyncResult.error || 'No se pudo guardar la fila en la pestaña Citas y Cobros de Google Sheets.',
+          }),
+        };
+      }
+    } catch (err: any) {
+      console.error('[Google Sheets Network Error Citas]:', err.message);
+      return {
+        statusCode: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: false,
+          error: `Fallo de conexión al sincronizar la cita con Google Sheets: ${err.message}.`,
+        }),
+      };
     }
 
     return {
@@ -178,9 +229,10 @@ export const handler: Handler = async (event) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         success: true,
-        message: 'Cita registrada con éxito con estado Pendiente.',
+        message: 'Cita registrada con éxito en Citas y Cobros con estado Agendada.',
         data: appointmentRecord,
-        sheetsSync,
+        sheetsSync: 'synced',
+        sheetRow: sheetsSyncResult?.data?.row,
       }),
     };
   } catch (error: any) {
@@ -188,7 +240,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Error interno al procesar la cita.' }),
+      body: JSON.stringify({ error: error.message || 'Error interno al procesar la cita.' }),
     };
   }
 };
