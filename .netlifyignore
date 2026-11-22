@@ -1,0 +1,9 @@
+node_modules
+.git
+.tools
+dist
+npm.bat
+npx.bat
+node.bat
+git.bat
+*.log
